@@ -24,7 +24,7 @@ def get_articles_of_previous_day():
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-        previous_date = (datetime.now() - timedelta(days=1)).date()
+        previous_date = (datetime.now() - timedelta(days=2)).date()
         query = """
         SELECT a.pmid, a.title, a.entrez_date, 
                au.lastname, 
