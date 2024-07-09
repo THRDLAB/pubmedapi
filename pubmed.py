@@ -14,23 +14,20 @@ conn = psycopg2.connect(
     database="pubmed",
     user="_6865d85393a52a7f",
     password="_e5407dde3a89a0756343cba1a7eaf1"
-
 )
 
-def get_db_connection():
-    conn = psycopg2.connect(**db_config)
-    return conn
-
-def get_articles_of_latest_date():
+def get_articles_of_previous_day():
     try:
-        conn = get_db_connection()
         cur = conn.cursor()
 
-        # Obtenez la date la plus récente dans la colonne entrez_date
+        # Obtenez la dernière date d'entrez dans la base de données
         cur.execute("SELECT MAX(entrez_date) FROM articles")
         last_entrez_date = cur.fetchone()[0]
 
-        # Récupérez les articles pour cette date la plus récente
+        if last_entrez_date is None:
+            print("Aucune date d'entrez trouvée.")
+            return []
+
         query = """
         SELECT a.pmid, a.title, a.entrez_date, 
                au.lastname, 
@@ -48,7 +45,6 @@ def get_articles_of_latest_date():
         articles = cur.fetchall()
 
         cur.close()
-        conn.close()
 
         combined_data = []
         for row in articles:
@@ -66,28 +62,29 @@ def get_articles_of_latest_date():
 
         return combined_data
 
-    except Exception as e:
+    except psycopg2.Error as e:
         print(f"Erreur lors de la récupération des articles: {e}")
         return []
 
 @app.route('/')
 def home():
-    return "Bienvenue sur l'API PubMed. Utilisez /get-latest-articles pour obtenir les articles de la date la plus récente."
+    return "Bienvenue sur l'API PubMed. Utilisez /get-previous-day-articles pour obtenir les articles de la veille."
 
-@app.route('/get-latest-articles', methods=['GET'])
-def get_latest_articles():
-    articles = get_articles_of_latest_date()
+@app.route('/get-previous-day-articles', methods=['GET'])
+def get_previous_day_articles():
+    articles = get_articles_of_previous_day()
     return jsonify(articles)
 
 def scheduled_task():
     with app.app_context():
-        articles = get_articles_of_latest_date()
-        print("Articles de la date la plus récente récupérés:", articles)
+        articles = get_articles_of_previous_day()
+        print("Articles de la veille récupérés:", articles)
 
 scheduler = BackgroundScheduler()
 scheduler.add_job(func=scheduled_task, trigger=CronTrigger(hour=6, minute=0))
 scheduler.start()
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port)
+    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
+else:
+    gunicorn_app = app
