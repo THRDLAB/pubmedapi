@@ -29,17 +29,22 @@ def get_articles_of_previous_day():
             return []
 
         query = """
-        SELECT a.pmid, a.title, a.entrez_date, 
-               au.lastname, 
-               c.condition, c.category, 
-               pt.population_type, 
-               pbt.publication_type
+        SELECT 
+            a.pmid, 
+            a.title, 
+            a.entrez_date,
+            STRING_AGG(DISTINCT au.lastname, ', ') AS authors,
+            STRING_AGG(DISTINCT c.condition, ', ') AS conditions,
+            STRING_AGG(DISTINCT c.category, ', ') AS categories,
+            STRING_AGG(DISTINCT pt.population_type, ', ') AS population_types,
+            STRING_AGG(DISTINCT pbt.publication_type, ', ') AS publication_types
         FROM articles a
         LEFT JOIN authors au ON a.pmid = au.pmid
         LEFT JOIN conditions c ON a.pmid = c.pmid
         LEFT JOIN population_type pt ON a.pmid = pt.pmid
         LEFT JOIN publication_type pbt ON a.pmid = pbt.pmid
         WHERE a.entrez_date = %s
+        GROUP BY a.pmid, a.title, a.entrez_date
         """
         cur.execute(query, (last_entrez_date,))
         articles = cur.fetchall()
@@ -52,11 +57,11 @@ def get_articles_of_previous_day():
                 'pmid': row[0],
                 'title': row[1],
                 'entrez_date': row[2],
-                'lastname': row[3],
-                'condition': row[4],
-                'category': row[5],
-                'population_type': row[6],
-                'publication_type': row[7]
+                'authors': row[3],
+                'conditions': row[4],
+                'categories': row[5],
+                'population_types': row[6],
+                'publication_types': row[7]
             }
             combined_data.append(article)
 
