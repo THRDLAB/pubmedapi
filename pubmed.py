@@ -24,7 +24,14 @@ def get_articles_of_previous_day():
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-        previous_date = (datetime.now() - timedelta(days=2)).date()
+
+        # Obtenez la dernière date d'entrez dans la base de données
+        cur.execute("SELECT MAX(entrez_date) FROM articles")
+        last_entrez_date = cur.fetchone()[0]
+
+        # Calculez la date précédente à partir de la dernière entrez_date trouvée
+        previous_date = last_entrez_date - timedelta(days=1)
+
         query = """
         SELECT a.pmid, a.title, a.entrez_date, 
                au.lastname, 
@@ -40,8 +47,10 @@ def get_articles_of_previous_day():
         """
         cur.execute(query, (previous_date,))
         articles = cur.fetchall()
+
         cur.close()
         conn.close()
+
         combined_data = []
         for row in articles:
             article = {
@@ -55,7 +64,9 @@ def get_articles_of_previous_day():
                 'publication_type': row[7]
             }
             combined_data.append(article)
+
         return combined_data
+
     except Exception as e:
         print(f"Erreur lors de la récupération des articles: {e}")
         return []
