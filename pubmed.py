@@ -8,13 +8,14 @@ from apscheduler.triggers.cron import CronTrigger
 app = Flask(__name__)
 
 # Configuration de la connexion à PostgreSQL
-db_config = {
-    "host": os.environ.get("primary.thyroresearch-ddb--kl8x797qxrg2.addon.code.run"),
-    "port": os.environ.get("29647"),
-    "database": os.environ.get("pubmed"),
-    "user": os.environ.get("_6865d85393a52a7f"),
-    "password": os.environ.get("_e5407dde3a89a0756343cba1a7eaf1")
-}
+conn = psycopg2.connect(
+    host="primary.thyroresearch-ddb--kl8x797qxrg2.addon.code.run",
+    port="29647",
+    database="pubmed",
+    user="_6865d85393a52a7f",
+    password="_e5407dde3a89a0756343cba1a7eaf1"
+
+)
 
 def get_db_connection():
     conn = psycopg2.connect(**db_config)
