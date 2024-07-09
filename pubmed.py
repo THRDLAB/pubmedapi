@@ -20,18 +20,16 @@ def get_db_connection():
     conn = psycopg2.connect(**db_config)
     return conn
 
-def get_articles_of_previous_day():
+def get_articles_of_latest_date():
     try:
         conn = get_db_connection()
         cur = conn.cursor()
 
-        # Obtenez la dernière date d'entrez dans la base de données
+        # Obtenez la date la plus récente dans la colonne entrez_date
         cur.execute("SELECT MAX(entrez_date) FROM articles")
         last_entrez_date = cur.fetchone()[0]
 
-        # Calculez la date précédente à partir de la dernière entrez_date trouvée
-        previous_date = last_entrez_date - timedelta(days=1)
-
+        # Récupérez les articles pour cette date la plus récente
         query = """
         SELECT a.pmid, a.title, a.entrez_date, 
                au.lastname, 
@@ -45,7 +43,7 @@ def get_articles_of_previous_day():
         LEFT JOIN publication_type pbt ON a.pmid = pbt.pmid
         WHERE a.entrez_date = %s
         """
-        cur.execute(query, (previous_date,))
+        cur.execute(query, (last_entrez_date,))
         articles = cur.fetchall()
 
         cur.close()
@@ -73,17 +71,17 @@ def get_articles_of_previous_day():
 
 @app.route('/')
 def home():
-    return "Bienvenue sur l'API PubMed. Utilisez /get-previous-day-articles pour obtenir les articles de la veille."
+    return "Bienvenue sur l'API PubMed. Utilisez /get-latest-articles pour obtenir les articles de la date la plus récente."
 
-@app.route('/get-previous-day-articles', methods=['GET'])
-def get_previous_day_articles():
-    articles = get_articles_of_previous_day()
+@app.route('/get-latest-articles', methods=['GET'])
+def get_latest_articles():
+    articles = get_articles_of_latest_date()
     return jsonify(articles)
 
 def scheduled_task():
     with app.app_context():
-        articles = get_articles_of_previous_day()
-        print("Articles de la veille récupérés:", articles)
+        articles = get_articles_of_latest_date()
+        print("Articles de la date la plus récente récupérés:", articles)
 
 scheduler = BackgroundScheduler()
 scheduler.add_job(func=scheduled_task, trigger=CronTrigger(hour=6, minute=0))
@@ -92,5 +90,3 @@ scheduler.start()
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
-else:
-    gunicorn_app = app
