@@ -1,6 +1,6 @@
 import os
 from flask import Flask, jsonify
-from datetime import datetime
+from datetime import datetime, timedelta
 import psycopg2
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -20,11 +20,11 @@ def get_db_connection():
     conn = psycopg2.connect(**db_config)
     return conn
 
-def get_articles_of_the_day():
+def get_articles_of_previous_day():
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-        today_date = datetime.now().date()
+        previous_date = (datetime.now() - timedelta(days=1)).date()
         query = """
         SELECT a.pmid, a.title, a.entrez_date, 
                au.lastname, 
@@ -38,7 +38,7 @@ def get_articles_of_the_day():
         LEFT JOIN publication_type pbt ON a.pmid = pbt.pmid
         WHERE a.entrez_date = %s
         """
-        cur.execute(query, (today_date,))
+        cur.execute(query, (previous_date,))
         articles = cur.fetchall()
         cur.close()
         conn.close()
@@ -60,15 +60,19 @@ def get_articles_of_the_day():
         print(f"Erreur lors de la récupération des articles: {e}")
         return []
 
-@app.route('/get-today-articles', methods=['GET'])
-def get_today_articles():
-    articles = get_articles_of_the_day()
+@app.route('/')
+def home():
+    return "Bienvenue sur l'API PubMed. Utilisez /get-previous-day-articles pour obtenir les articles de la veille."
+
+@app.route('/get-previous-day-articles', methods=['GET'])
+def get_previous_day_articles():
+    articles = get_articles_of_previous_day()
     return jsonify(articles)
 
 def scheduled_task():
     with app.app_context():
-        articles = get_articles_of_the_day()
-        print("Articles du jour récupérés:", articles)
+        articles = get_articles_of_previous_day()
+        print("Articles de la veille récupérés:", articles)
 
 scheduler = BackgroundScheduler()
 scheduler.add_job(func=scheduled_task, trigger=CronTrigger(hour=6, minute=0))
@@ -78,5 +82,4 @@ if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
 else:
-    # Cette partie sera exécutée lorsque Gunicorn démarrera l'application
     gunicorn_app = app
